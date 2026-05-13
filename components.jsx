@@ -189,24 +189,34 @@ function StatusBadge({ status, editable, onChange }) {
 }
 
 // ----- PRIORITY DOTS -----
+const PRIORITY_OPTIONS = [
+  { value: 0, label: "—",    short: "—"  },
+  { value: 1, label: "Low",  short: "Low"  },
+  { value: 2, label: "Mid",  short: "Mid"  },
+  { value: 3, label: "High", short: "High" },
+];
+
 function PriorityDots({ value, editable, onChange }) {
+  const opt = PRIORITY_OPTIONS.find(o => o.value === value) || PRIORITY_OPTIONS[0];
   if (!editable) {
+    if (!value) return null;
     return (
-      <span className="priority-dots" title={`Priority ${value}/3`}>
-        {[1, 2, 3].map(i => <i key={i} className={i <= value ? "on" : ""} />)}
+      <span className="priority-badge" data-level={value} title={`Priority: ${opt.label}`}>
+        {opt.short}
       </span>
     );
   }
   return (
-    <span className="priority-edit" title={`Priority ${value}/3 — click to change`}>
-      {[1, 2, 3].map(i => (
-        <i
-          key={i}
-          className={i <= value ? "on" : ""}
-          onClick={(e) => { e.stopPropagation(); onChange(i === value ? 0 : i); }}
-        />
+    <select
+      className="priority-select"
+      value={value ?? 0}
+      onChange={(e) => onChange(Number(e.target.value))}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {PRIORITY_OPTIONS.map(o => (
+        <option key={o.value} value={o.value}>{o.label}</option>
       ))}
-    </span>
+    </select>
   );
 }
 
