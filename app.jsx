@@ -14,20 +14,21 @@ async function dbLoad() {
 }
 async function dbUpsert(project) {
   const { error } = await db.from("projects").upsert({ id: project.id, data: project });
-  if (error) console.error("upsert:", error);
+  if (error) { console.error("upsert:", error); return error; }
 }
 async function dbInsert(project) {
-  const { error } = await db.from("projects").insert({ id: project.id, data: project });
-  if (error) console.error("insert:", error);
+  // use upsert so duplicate-id retries don't fail
+  const { error } = await db.from("projects").upsert({ id: project.id, data: project });
+  if (error) { console.error("insert:", error); return error; }
 }
 async function dbInsertMany(projects) {
   const rows = projects.map(p => ({ id: p.id, data: p }));
-  const { error } = await db.from("projects").insert(rows);
-  if (error) console.error("insertMany:", error);
+  const { error } = await db.from("projects").upsert(rows);
+  if (error) { console.error("insertMany:", error); return error; }
 }
 async function dbDelete(id) {
   const { error } = await db.from("projects").delete().eq("id", id);
-  if (error) console.error("delete:", error);
+  if (error) { console.error("delete:", error); return error; }
 }
 
 // ----- Tweaks -----
