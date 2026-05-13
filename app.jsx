@@ -48,7 +48,6 @@ function App() {
   const [view, setView] = useState("grid");
   const [sort, setSort] = useState("updated");
   const [openId, setOpenId] = useState(null);
-  const [showAdd, setShowAdd] = useState(false);
   const [inboxText, setInboxText] = useState("");
 
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
@@ -56,13 +55,7 @@ function App() {
   // load from Supabase on mount
   useEffect(() => {
     dbLoad().then(rows => {
-      if (rows === null) { setLoading(false); return; }
-      if (rows.length === 0) {
-        // first run — seed with sample data
-        dbInsertMany(SEED_PROJECTS).then(() => setProjects(SEED_PROJECTS));
-      } else {
-        setProjects(rows);
-      }
+      if (rows !== null) setProjects(rows);
       setLoading(false);
     });
   }, []);
@@ -157,31 +150,48 @@ function App() {
     setOpenId(copy.id);
     dbInsert(copy);
   };
-  const addProject = (project) => {
-    setProjects(prev => [project, ...prev]);
-    setShowAdd(false);
-    setOpenId(project.id);
-    dbInsert(project);
+  const createProject = () => {
+    const p = {
+      id: "p-" + Math.random().toString(36).slice(2, 9),
+      title: "Untitled project",
+      desc: "",
+      status: "ongoing",
+      priority: 0,
+      tags: [],
+      cover: { kind: "stripes", c1: "oklch(0.78 0.10 252)", c2: "oklch(0.92 0.04 252)", angle: "55deg" },
+      coverLabel: "",
+      figma: [], proto: [], docs: [],
+      stakeholders: [],
+      updated: "Just now",
+      started: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      notes: "",
+      history: [{ date: "Today", text: "Project created" }],
+      pinned: false,
+    };
+    setProjects(prev => [p, ...prev]);
+    setOpenId(p.id);
+    dbInsert(p);
   };
   const quickCapture = () => {
     if (!inboxText.trim()) return;
     const p = {
       id: "p-quick-" + Math.random().toString(36).slice(2, 7),
       title: inboxText.trim(),
-      desc: "Quick capture — add details when you have a sec.",
+      desc: "",
       status: "ongoing",
-      priority: 1,
+      priority: 0,
       tags: ["adhoc"],
       cover: { kind: "stripes", c1: "oklch(0.85 0.04 60)", c2: "oklch(0.93 0.02 60)", angle: "0deg" },
       coverLabel: "ADHOC",
       figma: [], proto: [], docs: [],
-      stakeholders: ["Self"],
+      stakeholders: [],
       updated: "Just now",
       started: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
       notes: "", history: [{ date: "Today", text: "Captured via inbox" }],
       pinned: false,
     };
     setProjects(prev => [p, ...prev]);
+    setOpenId(p.id);
     setInboxText("");
     dbInsert(p);
   };
@@ -191,7 +201,7 @@ function App() {
   useEffect(() => {
     const h = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); searchRef.current?.focus(); }
-      if ((e.metaKey || e.ctrlKey) && e.key === "n") { e.preventDefault(); setShowAdd(true); }
+      if ((e.metaKey || e.ctrlKey) && e.key === "n") { e.preventDefault(); createProject(); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -263,7 +273,7 @@ function App() {
             <button className="icon-btn" onClick={() => setTweak("theme", t.theme === "light" ? "dark" : "light")} title="Toggle theme">
               {t.theme === "light" ? <Icon.moon /> : <Icon.sun />}
             </button>
-            <button className="primary-btn" onClick={() => setShowAdd(true)}>
+            <button className="primary-btn" onClick={createProject}>
               <Icon.plus /> New project
             </button>
           </div>
@@ -340,7 +350,6 @@ function App() {
         onDelete={deleteProject}
         onDuplicate={duplicateProject}
       />
-      {showAdd && <AddProjectModal onClose={() => setShowAdd(false)} onSave={addProject} />}
 
       {/* Tweaks */}
       <TweaksPanel title="Tweaks">
