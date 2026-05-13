@@ -21,6 +21,7 @@ const Icon = {
   upload: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 11V3M5 6l3-3 3 3M3 13h10" /></svg>,
   swatch: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="2.5" y="2.5" width="5" height="5" rx="1" /><rect x="8.5" y="2.5" width="5" height="5" rx="1" /><rect x="2.5" y="8.5" width="5" height="5" rx="1" /><rect x="8.5" y="8.5" width="5" height="5" rx="1" /></svg>,
   link: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M9 4.5h2.5a3 3 0 0 1 0 6H9M7 11.5H4.5a3 3 0 0 1 0-6H7M5.5 8h5" /></svg>,
+  color: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><circle cx="5" cy="6" r="1.5" /><circle cx="11" cy="6" r="1.5" /><circle cx="8" cy="11" r="1.5" /><circle cx="8" cy="3" r="1.5" /></svg>,
 };
 
 // ----- STATUS META -----
@@ -36,6 +37,19 @@ function CoverArt({ cover, label }) {
   if (!cover) return <div className="card-cover-art">cover</div>;
   if (cover.kind === "image" && cover.src) {
     return <img src={cover.src} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />;
+  }
+  if (cover.kind === "figma-thumb") {
+    if (cover.thumbUrl) return <img src={cover.thumbUrl} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />;
+    return <div className="card-cover-art" style={{ flexDirection: "column", gap: 4, opacity: 0.5 }}><Icon.figma />Figma thumbnail</div>;
+  }
+  if (cover.kind === "color-text") {
+    const len = (cover.text || "").length;
+    const fs = len > 20 ? 20 : len > 10 ? 28 : 42;
+    return (
+      <div style={{ position: "absolute", inset: 0, background: cover.bg || "#e8eeff", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        {cover.text && <span style={{ fontFamily: "var(--display)", fontSize: fs, fontWeight: 700, color: cover.textColor || "#1a2a6c", textAlign: "center", lineHeight: 1.2 }}>{cover.text}</span>}
+      </div>
+    );
   }
   const style = {
     "--c1": cover.c1, "--c2": cover.c2, "--c3": cover.c3, "--angle": cover.angle,
@@ -64,6 +78,20 @@ function CoverArt({ cover, label }) {
     </div>
   );
   return null;
+}
+
+// ----- FIGMA THUMBNAIL FETCH -----
+async function fetchFigmaThumb(figmaUrl, token) {
+  const match = String(figmaUrl).match(/figma\.com\/(?:file|design)\/([A-Za-z0-9]+)/);
+  if (!match) return null;
+  try {
+    const res = await fetch(`https://api.figma.com/v1/files/${match[1]}?depth=1`, {
+      headers: { "X-Figma-Token": token },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.thumbnailUrl || null;
+  } catch (e) { return null; }
 }
 
 // ----- INLINE EDITABLE TEXT -----
@@ -314,17 +342,21 @@ function ListRow({ project, onOpen, onPin }) {
 // ----- COVER EDITOR -----
 function CoverEditor({ project, onChange }) {
   const fileRef = useRef(null);
-  const [menu, setMenu] = useState(false);
-  const [pasting, setPasting] = useState(false);
+  const [mode, setMode] = useState(null); // null | "pattern" | "url" | "color-text" | "figma-token"
   const [url, setUrl] = useState("");
+  const [colorBg, setColorBg] = useState("#dde8ff");
+  const [colorText, setColorText] = useState("");
+  const [token, setToken] = useState(() => { try { return localStorage.getItem("figma_token") || ""; } catch(e) { return ""; } });
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState("");
   const ref = useRef(null);
 
   useEffect(() => {
-    if (!menu) return;
-    const h = (e) => { if (!ref.current?.contains(e.target)) setMenu(false); };
+    if (!mode) return;
+    const h = (e) => { if (!ref.current?.contains(e.target)) setMode(null); };
     window.addEventListener("mousedown", h);
     return () => window.removeEventListener("mousedown", h);
-  }, [menu]);
+  }, [mode]);
 
   const handleFile = (file) => {
     if (!file || !file.type.startsWith("image/")) return;
@@ -339,11 +371,40 @@ function CoverEditor({ project, onChange }) {
     if (file) handleFile(file);
   };
 
+  const doFigmaFetch = async (tok) => {
+    const firstUrl = project.figma?.[0]?.url;
+    if (!firstUrl) { setFetchError("No Figma link on this project yet"); return; }
+    setFetching(true);
+    setFetchError("");
+    const thumbUrl = await fetchFigmaThumb(firstUrl, tok);
+    setFetching(false);
+    if (thumbUrl) {
+      onChange({ kind: "figma-thumb", thumbUrl });
+      setMode(null);
+    } else {
+      setFetchError("Could not load thumbnail — check token or file access");
+    }
+  };
+
+  const handleFigmaClick = () => {
+    const stored = localStorage.getItem("figma_token");
+    if (stored) { doFigmaFetch(stored); }
+    else { setMode("figma-token"); }
+  };
+
+  const saveToken = () => {
+    const t = token.trim();
+    if (!t) return;
+    localStorage.setItem("figma_token", t);
+    setMode(null);
+    doFigmaFetch(t);
+  };
+
   const presets = [
     { kind: "stripes", c1: "oklch(0.78 0.10 252)", c2: "oklch(0.92 0.04 252)", angle: "55deg" },
-    { kind: "blob", c1: "oklch(0.85 0.10 252)", c2: "oklch(0.85 0.08 320)", c3: "oklch(0.97 0.02 252)" },
-    { kind: "grid", c2: "oklch(0.75 0.08 252 / 0.4)", c3: "oklch(0.96 0.02 252)" },
-    { kind: "type", c1: "oklch(0.45 0.18 252)", c3: "oklch(0.94 0.04 252)", text: project.title?.slice(0, 2) || "Aa" },
+    { kind: "blob",    c1: "oklch(0.85 0.10 252)", c2: "oklch(0.85 0.08 320)", c3: "oklch(0.97 0.02 252)" },
+    { kind: "grid",    c2: "oklch(0.75 0.08 252 / 0.4)", c3: "oklch(0.96 0.02 252)" },
+    { kind: "type",    c1: "oklch(0.45 0.18 252)", c3: "oklch(0.94 0.04 252)", text: project.title?.slice(0, 2) || "Aa" },
   ];
 
   return (
@@ -354,25 +415,38 @@ function CoverEditor({ project, onChange }) {
       onDrop={(e) => { e.currentTarget.classList.remove("dropping"); onDrop(e); }}
     >
       <CoverArt cover={project.cover} label={project.coverLabel} />
+
       <div className="cover-overlay" ref={ref}>
+        {/* Upload */}
         <button className="cover-btn" onClick={() => fileRef.current?.click()}>
           <Icon.upload /> Upload
         </button>
-        <button className="cover-btn" onClick={() => setMenu(!menu)}>
+
+        {/* Pattern */}
+        <button className="cover-btn" onClick={() => setMode(mode === "pattern" ? null : "pattern")}>
           <Icon.swatch /> Pattern
         </button>
-        <button className="cover-btn" onClick={() => setPasting(!pasting)}>
+
+        {/* Color + text */}
+        <button className="cover-btn" onClick={() => setMode(mode === "color-text" ? null : "color-text")}>
+          <Icon.color /> Color
+        </button>
+
+        {/* Figma thumbnail */}
+        <button className="cover-btn" onClick={handleFigmaClick} disabled={fetching} style={{ opacity: fetching ? 0.6 : 1 }}>
+          <Icon.figma /> {fetching ? "Loading…" : "Figma"}
+        </button>
+
+        {/* URL */}
+        <button className="cover-btn" onClick={() => setMode(mode === "url" ? null : "url")}>
           <Icon.link /> URL
         </button>
-        {menu && (
+
+        {/* Pattern picker */}
+        {mode === "pattern" && (
           <div className="cover-presets">
             {presets.map((p, i) => (
-              <button
-                key={i}
-                className="cover-preset"
-                onClick={() => { onChange(p); setMenu(false); }}
-                title={p.kind}
-              >
+              <button key={i} className="cover-preset" onClick={() => { onChange(p); setMode(null); }} title={p.kind}>
                 <div style={{ position: "absolute", inset: 0, borderRadius: "inherit", overflow: "hidden" }}>
                   <CoverArt cover={p} />
                 </div>
@@ -381,7 +455,33 @@ function CoverEditor({ project, onChange }) {
           </div>
         )}
       </div>
-      {pasting && (
+
+      {/* Color + text form */}
+      {mode === "color-text" && (
+        <div className="cover-url-form" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="color"
+            value={colorBg}
+            onChange={(e) => setColorBg(e.target.value)}
+            title="Background color"
+            style={{ width: 34, height: 34, padding: 2, border: "1px solid var(--line)", borderRadius: 6, cursor: "pointer", flexShrink: 0 }}
+          />
+          <input
+            autoFocus
+            value={colorText}
+            onChange={(e) => setColorText(e.target.value)}
+            placeholder="Text on cover…"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { onChange({ kind: "color-text", bg: colorBg, text: colorText }); setMode(null); }
+              if (e.key === "Escape") setMode(null);
+            }}
+          />
+          <button className="save" onClick={() => { onChange({ kind: "color-text", bg: colorBg, text: colorText }); setMode(null); }}>Set</button>
+        </div>
+      )}
+
+      {/* URL form */}
+      {mode === "url" && (
         <div className="cover-url-form" onClick={(e) => e.stopPropagation()}>
           <input
             autoFocus
@@ -389,29 +489,40 @@ function CoverEditor({ project, onChange }) {
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://… image URL"
             onKeyDown={(e) => {
-              if (e.key === "Enter" && url.trim()) {
-                onChange({ kind: "image", src: url.trim() });
-                setUrl(""); setPasting(false);
-              }
-              if (e.key === "Escape") { setPasting(false); setUrl(""); }
+              if (e.key === "Enter" && url.trim()) { onChange({ kind: "image", src: url.trim() }); setUrl(""); setMode(null); }
+              if (e.key === "Escape") { setMode(null); setUrl(""); }
             }}
           />
-          <button
-            className="save"
-            onClick={() => {
-              if (url.trim()) { onChange({ kind: "image", src: url.trim() }); setUrl(""); setPasting(false); }
-            }}
-          >Set</button>
+          <button className="save" onClick={() => { if (url.trim()) { onChange({ kind: "image", src: url.trim() }); setUrl(""); setMode(null); } }}>Set</button>
         </div>
       )}
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={(e) => handleFile(e.target.files?.[0])}
-      />
-      <div className="cover-hint">Drop an image, upload, paste URL, or pick a pattern</div>
+
+      {/* Figma token form */}
+      {mode === "figma-token" && (
+        <div className="cover-url-form" onClick={(e) => e.stopPropagation()}>
+          <input
+            autoFocus
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Figma personal access token…"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveToken();
+              if (e.key === "Escape") setMode(null);
+            }}
+          />
+          <button className="save" onClick={saveToken}>Save & fetch</button>
+        </div>
+      )}
+
+      {/* Error */}
+      {fetchError && (
+        <div style={{ position: "absolute", bottom: 8, left: 12, right: 12, fontSize: 11, color: "oklch(0.45 0.16 25)", background: "var(--paper)", padding: "4px 8px", borderRadius: 6, textAlign: "center" }}>
+          {fetchError}
+        </div>
+      )}
+
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleFile(e.target.files?.[0])} />
+      <div className="cover-hint">Upload · Pattern · Color · Figma · URL</div>
     </div>
   );
 }
