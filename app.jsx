@@ -20,7 +20,7 @@ function saveState(s) {
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "accent": "rgb(6, 92, 206)",
   "density": "cozy",
-  "displayFont": "Instrument Serif",
+  "displayFont": "Poppins",
   "theme": "light"
 }/*EDITMODE-END*/;
 

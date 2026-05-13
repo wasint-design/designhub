@@ -23,9 +23,9 @@
   --s-archived: oklch(0.55 0.02 250);   /* graphite */
   --s-archived-soft: oklch(0.93 0.008 250);
 
-  --display: "Instrument Serif", "Cormorant Garamond", Georgia, serif;
-  --sans: "Poppins", "Geist", -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --mono: "Geist Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --display: "Poppins", sans-serif;
+  --sans: "Poppins", sans-serif;
+  --mono: "Poppins", sans-serif;
 
   --r-sm: 6px;
   --r-md: 10px;
