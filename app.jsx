@@ -186,7 +186,7 @@ function App() {
     else if (sort === "alpha") list.sort((a, b) => a.title.localeCompare(b.title));
     else if (sort === "started") list.sort((a, b) => (a.started > b.started ? -1 : 1));
     return list;
-  }, [projects, filter, tagFilter, search, sort]);
+  }, [projects, filter, platformFilter, tagFilter, search, sort]);
 
   // grouped sections
   const groupedSections = useMemo(() => {
@@ -287,10 +287,12 @@ function App() {
 
   // keyboard shortcuts
   const searchRef = useRef();
+  const createProjectRef = useRef(createProject);
+  createProjectRef.current = createProject;
   useEffect(() => {
     const h = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); searchRef.current?.focus(); }
-      if ((e.metaKey || e.ctrlKey) && e.key === "n") { e.preventDefault(); createProject(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === "n") { e.preventDefault(); createProjectRef.current(); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
