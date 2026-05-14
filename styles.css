@@ -833,7 +833,22 @@ a { color: inherit; text-decoration: none; }
   font-style: italic;
 }
 
-.drawer-title.editable:focus { box-shadow: 0 0 0 2px var(--accent-soft), inset 0 0 0 1px var(--ink-3); }
+.drawer-title.editable {
+  border-bottom: 2px solid var(--line);
+  border-radius: 0;
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: 0;
+}
+.drawer-title.editable:hover {
+  background: transparent;
+  border-bottom-color: var(--ink-3);
+}
+.drawer-title.editable:focus {
+  background: transparent;
+  box-shadow: none;
+  border-bottom-color: var(--accent);
+}
 
 .menu {
   position: absolute;

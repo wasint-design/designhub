@@ -238,11 +238,25 @@ function App() {
     setOpenId(copy.id);
     dbInsert(copy);
   };
+  const isEmptyProject = (p) =>
+    !p.title.trim() &&
+    !p.desc.trim() &&
+    !p.figma?.length && !p.proto?.length && !p.docs?.length &&
+    !p.notes?.trim();
+
+  const handleClose = () => {
+    if (openProject && isEmptyProject(openProject)) {
+      setProjects(prev => prev.filter(x => x.id !== openProject.id));
+      dbDelete(openProject.id);
+    }
+    setOpenId(null);
+  };
+
   const createProject = (team) => {
     const autoTeam = team || platformFilter; // use passed team or current sidebar filter
     const p = {
       id: "p-" + Math.random().toString(36).slice(2, 9),
-      title: "Untitled project",
+      title: "",
       desc: "",
       status: "ongoing",
       priority: 0,
@@ -462,7 +476,7 @@ function App() {
 
       <DetailDrawer
         project={openProject}
-        onClose={() => setOpenId(null)}
+        onClose={handleClose}
         onUpdate={updateProject}
         onDelete={deleteProject}
         onDuplicate={duplicateProject}
