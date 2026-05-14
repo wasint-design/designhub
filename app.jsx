@@ -484,6 +484,7 @@ function App() {
 
       <DetailDrawer
         project={openProject}
+        projects={projects}
         onClose={handleClose}
         onUpdate={updateProject}
         onDelete={deleteProject}

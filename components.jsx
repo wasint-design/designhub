@@ -569,8 +569,32 @@ function CoverEditor({ project, onChange }) {
   );
 }
 
+// ----- DUPLICATE DETECTOR -----
+function projectWarning(title, allProjects, currentId) {
+  if (!title || title.trim().length < 2) return null;
+  const norm = (s) => s.toLowerCase().trim();
+  // significant words: length > 3, not pure numbers/versions
+  const sigWords = (s) => s.toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !/^v?\d+$/.test(w));
+
+  const tw = new Set(sigWords(title));
+  const exact = [], related = [];
+  allProjects.forEach(p => {
+    if (p.id === currentId) return;
+    if (norm(p.title) === norm(title)) {
+      exact.push(p.title);
+    } else if (tw.size > 0) {
+      const shared = sigWords(p.title).filter(w => tw.has(w)).length;
+      if (shared >= 1) related.push(p.title);
+    }
+  });
+  return { exact, related };
+}
+
 // ----- DRAWER (editable) -----
-function DetailDrawer({ project, onClose, onUpdate, onDelete, onDuplicate }) {
+function DetailDrawer({ project, projects, onClose, onUpdate, onDelete, onDuplicate }) {
   const open = !!project;
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -664,6 +688,21 @@ function DetailDrawer({ project, onClose, onUpdate, onDelete, onDuplicate }) {
                 placeholder="Untitled project"
                 onCommit={(v) => patch({ title: v || "Untitled" })}
               />
+              {(() => {
+                const w = projectWarning(project.title, projects || [], project.id);
+                if (!w) return null;
+                if (w.exact.length > 0) return (
+                  <div style={{ fontSize: 12, color: "oklch(0.48 0.14 38)", background: "oklch(0.96 0.04 38)", borderRadius: 8, padding: "6px 10px", marginBottom: 4 }}>
+                    ⚠ Project with this exact name already exists
+                  </div>
+                );
+                if (w.related.length > 0) return (
+                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 4 }}>
+                    Related: {w.related.join(", ")}
+                  </div>
+                );
+                return null;
+              })()}
               <Editable
                 as="p"
                 className="drawer-desc"
