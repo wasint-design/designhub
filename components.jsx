@@ -22,6 +22,7 @@ const Icon = {
   swatch: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="2.5" y="2.5" width="5" height="5" rx="1" /><rect x="8.5" y="2.5" width="5" height="5" rx="1" /><rect x="2.5" y="8.5" width="5" height="5" rx="1" /><rect x="8.5" y="8.5" width="5" height="5" rx="1" /></svg>,
   link: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M9 4.5h2.5a3 3 0 0 1 0 6H9M7 11.5H4.5a3 3 0 0 1 0-6H7M5.5 8h5" /></svg>,
   color: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><circle cx="5" cy="6" r="1.5" /><circle cx="11" cy="6" r="1.5" /><circle cx="8" cy="11" r="1.5" /><circle cx="8" cy="3" r="1.5" /></svg>,
+  pencil: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 2l3 3-8 8H3v-3l8-8z" /></svg>,
 };
 
 // ----- STATUS META -----
@@ -627,6 +628,12 @@ function DetailDrawer({ project, projects, onClose, onUpdate, onDelete, onDuplic
     const arr = (project[key] || []).filter((_, i) => i !== idx);
     patch({ [key]: arr });
   };
+  const updateLink = (kind, idx, link) => {
+    const key = kind === "doc" ? "docs" : kind === "figma" ? "figma" : "proto";
+    const arr = [...(project[key] || [])];
+    arr[idx] = link;
+    patch({ [key]: arr });
+  };
 
   return (
     <>
@@ -745,6 +752,7 @@ function DetailDrawer({ project, projects, onClose, onUpdate, onDelete, onDuplic
                 links={project.figma || []}
                 onAdd={(l) => addLink("figma", l)}
                 onRemove={(i) => removeLink("figma", i)}
+                onUpdate={(i, l) => updateLink("figma", i, l)}
               />
 
               <LinkSection
@@ -754,6 +762,7 @@ function DetailDrawer({ project, projects, onClose, onUpdate, onDelete, onDuplic
                 links={project.proto || []}
                 onAdd={(l) => addLink("proto", l)}
                 onRemove={(i) => removeLink("proto", i)}
+                onUpdate={(i, l) => updateLink("proto", i, l)}
                 showKindToggle
               />
 
@@ -764,6 +773,7 @@ function DetailDrawer({ project, projects, onClose, onUpdate, onDelete, onDuplic
                 links={project.docs || []}
                 onAdd={(l) => addLink("doc", l)}
                 onRemove={(i) => removeLink("doc", i)}
+                onUpdate={(i, l) => updateLink("doc", i, l)}
               />
 
               <div className="section-h">Notes</div>
@@ -812,8 +822,9 @@ function DetailDrawer({ project, projects, onClose, onUpdate, onDelete, onDuplic
 }
 
 // ----- LINK SECTION -----
-function LinkSection({ title, kind, placeholder, links, onAdd, onRemove, showKindToggle }) {
+function LinkSection({ title, kind, placeholder, links, onAdd, onRemove, onUpdate, showKindToggle }) {
   const [adding, setAdding] = useState(false);
+  const [editIdx, setEditIdx] = useState(null);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [linkKind, setLinkKind] = useState(kind === "proto" ? "web" : kind);
@@ -827,11 +838,58 @@ function LinkSection({ title, kind, placeholder, links, onAdd, onRemove, showKin
     setName(""); setUrl(""); setAdding(false);
   };
 
+  const startEdit = (e, i) => {
+    e.preventDefault(); e.stopPropagation();
+    setEditIdx(i);
+    setName(links[i].name || "");
+    setUrl(links[i].url || "");
+    setLinkKind(links[i].kind || (kind === "proto" ? "web" : kind));
+    setAdding(false);
+  };
+
+  const submitEdit = () => {
+    if (!url.trim()) return;
+    const cleanUrl = url.trim().replace(/^https?:\/\//, "");
+    const link = { name: name.trim() || titleFromUrl(cleanUrl), url: cleanUrl };
+    if (kind === "proto") link.kind = linkKind;
+    onUpdate(editIdx, link);
+    setEditIdx(null); setName(""); setUrl("");
+  };
+
   return (
     <>
       <div className="section-h">{title} <span style={{ color: "var(--ink-3)", marginLeft: 4 }}>({links.length})</span></div>
       <div className="link-list">
-        {links.map((l, i) => (
+        {links.map((l, i) => editIdx === i ? (
+          <div key={i} className="add-link-form" onClick={(e) => e.stopPropagation()}>
+            <input
+              autoFocus
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={placeholder}
+              onKeyDown={(e) => { if (e.key === "Enter") submitEdit(); if (e.key === "Escape") setEditIdx(null); }}
+            />
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Label (optional)"
+              onKeyDown={(e) => { if (e.key === "Enter") submitEdit(); if (e.key === "Escape") setEditIdx(null); }}
+            />
+            {showKindToggle && (
+              <div style={{ display: "flex", gap: 6 }}>
+                {["web", "figma"].map(k => (
+                  <button key={k} onClick={() => setLinkKind(k)} style={{ flex: 1, padding: "6px 10px", borderRadius: 6, fontSize: 11, fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: "0.08em", border: "1px solid var(--line)", background: linkKind === k ? "var(--ink)" : "var(--paper)", color: linkKind === k ? "var(--bg)" : "var(--ink-2)" }}>
+                    {k === "web" ? "Webapp" : "Figma"}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="row">
+              <button className="cancel" onClick={() => setEditIdx(null)}>Cancel</button>
+              <button className="save" onClick={submitEdit}>Save</button>
+            </div>
+          </div>
+        ) : (
           <a
             key={i}
             className="link-row"
@@ -850,6 +908,7 @@ function LinkSection({ title, kind, placeholder, links, onAdd, onRemove, showKin
               <span className="link-url">{l.url}</span>
             </span>
             <span className="link-ext"><Icon.ext /></span>
+            <button className="link-edit" onClick={(e) => startEdit(e, i)} title="Edit link"><Icon.pencil /></button>
             <button
               className="link-remove"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(i); }}

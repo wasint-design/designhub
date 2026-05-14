@@ -894,9 +894,10 @@ a { color: inherit; text-decoration: none; }
 .link-list .link-row {
   position: relative;
 }
-.link-list .link-row .link-remove {
+.link-list .link-row .link-remove,
+.link-list .link-row .link-edit {
   position: absolute;
-  right: 6px; top: 50%;
+  top: 50%;
   transform: translateY(-50%);
   width: 22px; height: 22px;
   border-radius: var(--r-sm);
@@ -906,8 +907,12 @@ a { color: inherit; text-decoration: none; }
   opacity: 0;
   transition: opacity 120ms;
 }
-.link-list a.link-row:hover .link-remove { opacity: 1; }
+.link-list .link-row .link-remove { right: 6px; }
+.link-list .link-row .link-edit   { right: 32px; }
+.link-list a.link-row:hover .link-remove,
+.link-list a.link-row:hover .link-edit { opacity: 1; }
 .link-list .link-row .link-remove:hover { color: oklch(0.45 0.18 25); background: oklch(0.94 0.04 25); }
+.link-list .link-row .link-edit:hover   { color: var(--accent); background: var(--accent-soft); }
 
 .add-link-btn {
   display: inline-flex; align-items: center; gap: 7px;
