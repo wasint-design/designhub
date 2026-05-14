@@ -39,7 +39,57 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "light"
 }/*EDITMODE-END*/;
 
+const ALLOWED_DOMAIN = "@umt.ltd";
+
+function LoginScreen({ onSignIn, error }) {
+  return (
+    <div style={{
+      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+      background: "var(--bg)", fontFamily: "var(--sans)",
+    }}>
+      <div style={{
+        background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 20,
+        padding: "48px 56px", textAlign: "center", maxWidth: 380, width: "100%",
+        boxShadow: "0 20px 60px -20px oklch(0.18 0.01 60 / 0.15)",
+      }}>
+        <div style={{ fontFamily: "var(--display)", fontSize: 32, marginBottom: 6 }}>
+          <span style={{ color: "var(--accent)" }}>MuvMi</span> <em style={{ color: "var(--ink)" }}>Design</em>
+        </div>
+        <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 36 }}>
+          Design Hub
+        </div>
+        <button
+          onClick={onSignIn}
+          style={{
+            width: "100%", padding: "12px 20px", borderRadius: 10,
+            border: "1px solid var(--line)", background: "var(--paper)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+            fontSize: 14, fontWeight: 500, cursor: "pointer", color: "var(--ink)",
+            transition: "border-color 120ms, box-shadow 120ms",
+          }}
+          onMouseOver={e => e.currentTarget.style.borderColor = "var(--ink-3)"}
+          onMouseOut={e => e.currentTarget.style.borderColor = "var(--line)"}
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+          Sign in with Google
+        </button>
+        {error && (
+          <div style={{ marginTop: 16, fontSize: 12, color: "oklch(0.45 0.16 25)", background: "oklch(0.96 0.03 25)", borderRadius: 8, padding: "10px 14px" }}>
+            {error}
+          </div>
+        )}
+        <div style={{ marginTop: 20, fontSize: 11, color: "var(--ink-3)" }}>
+          Only <strong>@umt.ltd</strong> accounts are allowed
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -52,13 +102,47 @@ function App() {
 
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
-  // load from Supabase on mount
+  // auth
   useEffect(() => {
+    db.auth.getSession().then(({ data: { session } }) => {
+      if (session && !session.user.email.endsWith(ALLOWED_DOMAIN)) {
+        db.auth.signOut();
+        setAuthError("Only @umt.ltd accounts are allowed.");
+        setSession(null);
+      } else {
+        setSession(session);
+      }
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = db.auth.onAuthStateChange((_e, session) => {
+      if (session && !session.user.email.endsWith(ALLOWED_DOMAIN)) {
+        db.auth.signOut();
+        setAuthError("Only @umt.ltd accounts are allowed.");
+        setSession(null);
+      } else {
+        setSession(session);
+        setAuthError(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signIn = () => {
+    db.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.href },
+    });
+  };
+  const signOut = () => db.auth.signOut();
+
+  // load from Supabase on mount (only when authenticated)
+  useEffect(() => {
+    if (!session) return;
     dbLoad().then(rows => {
       if (rows !== null) setProjects(rows);
       setLoading(false);
     });
-  }, []);
+  }, [session]);
 
   // apply theme + tweaks
   useEffect(() => {
@@ -207,6 +291,14 @@ function App() {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
+  if (authLoading) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--sans)", color: "var(--ink-3)", fontSize: 14 }}>
+      Loading…
+    </div>
+  );
+
+  if (!session) return <LoginScreen onSignIn={signIn} error={authError} />;
+
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--sans)", color: "var(--ink-3)", fontSize: 14 }}>
       Loading…
@@ -248,10 +340,22 @@ function App() {
           </div>
         </div>
 
-        <div style={{ marginTop: "auto", fontFamily: "var(--mono)", fontSize: 10, color: "var(--ink-3)", lineHeight: 1.6 }}>
-          <div>⌘K — search</div>
-          <div>⌘N — new project</div>
-          <div>Esc — close drawer</div>
+        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--ink-3)", lineHeight: 1.6 }}>
+            <div>⌘K — search</div>
+            <div>⌘N — new project</div>
+            <div>Esc — close drawer</div>
+          </div>
+          <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ fontSize: 11, color: "var(--ink-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {session.user.email}
+            </div>
+            <button onClick={signOut} style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", flexShrink: 0 }}
+              onMouseOver={e => e.currentTarget.style.color = "var(--ink)"}
+              onMouseOut={e => e.currentTarget.style.color = "var(--ink-3)"}>
+              Sign out
+            </button>
+          </div>
         </div>
       </aside>
 
