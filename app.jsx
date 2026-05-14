@@ -388,7 +388,7 @@ function App() {
             <button className="icon-btn" onClick={() => setTweak("theme", t.theme === "light" ? "dark" : "light")} title="Toggle theme">
               {t.theme === "light" ? <Icon.moon /> : <Icon.sun />}
             </button>
-            <button className="primary-btn" onClick={createProject}>
+            <button className="primary-btn" onClick={() => createProject()}>
               <Icon.plus /> New project
             </button>
           </div>
