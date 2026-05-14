@@ -1,5 +1,5 @@
 /* global React, ReactDOM, SEED_PROJECTS, ALL_TAGS, SUPABASE_URL, SUPABASE_ANON_KEY,
-   Icon, ProjectCard, ListRow, DetailDrawer, AddProjectModal,
+   Icon, ProjectCard, ListRow, DetailDrawer, AddProjectModal, TeamSelect,
    useTweaks, TweaksPanel, TweakSection, TweakColor, TweakRadio, TweakToggle, TweakSelect
 */
 const { useState, useEffect, useMemo, useRef } = React;
@@ -93,6 +93,7 @@ function App() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [platformFilter, setPlatformFilter] = useState(null); // null | "passenger" | "driver"
   const [tagFilter, setTagFilter] = useState(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState("grid");
@@ -154,11 +155,13 @@ function App() {
 
   // counts
   const counts = useMemo(() => {
-    const c = { all: projects.length, ongoing: 0, shipped: 0, hold: 0, archived: 0, adhoc: 0, pinned: 0 };
+    const c = { all: projects.length, ongoing: 0, shipped: 0, hold: 0, archived: 0, adhoc: 0, pinned: 0, passenger: 0, driver: 0 };
     projects.forEach(p => {
       c[p.status] = (c[p.status] || 0) + 1;
       if (p.tags?.includes("adhoc")) c.adhoc++;
       if (p.pinned) c.pinned++;
+      if (p.tags?.includes("passenger")) c.passenger++;
+      if (p.tags?.includes("driver")) c.driver++;
     });
     return c;
   }, [projects]);
@@ -169,6 +172,7 @@ function App() {
     if (filter === "pinned") list = list.filter(p => p.pinned);
     else if (filter === "adhoc") list = list.filter(p => p.tags?.includes("adhoc"));
     else if (filter !== "all") list = list.filter(p => p.status === filter);
+    if (platformFilter) list = list.filter(p => p.tags?.includes(platformFilter));
     if (tagFilter) list = list.filter(p => p.tags?.includes(tagFilter));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -234,14 +238,15 @@ function App() {
     setOpenId(copy.id);
     dbInsert(copy);
   };
-  const createProject = () => {
+  const createProject = (team) => {
+    const autoTeam = team || platformFilter; // use passed team or current sidebar filter
     const p = {
       id: "p-" + Math.random().toString(36).slice(2, 9),
       title: "Untitled project",
       desc: "",
       status: "ongoing",
       priority: 0,
-      tags: [],
+      tags: autoTeam ? [autoTeam] : [],
       cover: { kind: "stripes", c1: "oklch(0.78 0.10 252)", c2: "oklch(0.92 0.04 252)", angle: "55deg" },
       coverLabel: "",
       figma: [], proto: [], docs: [],
@@ -317,7 +322,13 @@ function App() {
         </div>
 
         <div className="nav-group">
-          <NavItem icon="◆" label="All projects" count={counts.all} active={filter === "all" && !tagFilter} onClick={() => { setFilter("all"); setTagFilter(null); }} />
+          <NavItem icon="◆" label="All projects" count={counts.all} active={filter === "all" && !tagFilter && !platformFilter} onClick={() => { setFilter("all"); setTagFilter(null); setPlatformFilter(null); }} />
+        </div>
+
+        <div className="nav-group">
+          <div className="nav-label">Platform</div>
+          <NavItem dotColor="oklch(0.55 0.14 280)" label="Passenger" count={counts.passenger || 0} active={platformFilter === "passenger"} onClick={() => { setPlatformFilter(platformFilter === "passenger" ? null : "passenger"); setTagFilter(null); }} />
+          <NavItem dotColor="oklch(0.55 0.14 155)" label="Driver"    count={counts.driver    || 0} active={platformFilter === "driver"}    onClick={() => { setPlatformFilter(platformFilter === "driver"    ? null : "driver");    setTagFilter(null); }} />
         </div>
 
         <div className="nav-group">

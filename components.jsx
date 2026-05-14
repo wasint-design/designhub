@@ -220,6 +220,23 @@ function PriorityDots({ value, editable, onChange }) {
   );
 }
 
+// ----- TEAM / PLATFORM SELECT -----
+function TeamSelect({ value, onChange }) {
+  return (
+    <select
+      className="priority-select"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+      style={{ color: value === "driver" ? "oklch(0.42 0.14 155)" : value === "passenger" ? "oklch(0.42 0.14 280)" : undefined }}
+    >
+      <option value="">No platform</option>
+      <option value="passenger">Passenger</option>
+      <option value="driver">Driver</option>
+    </select>
+  );
+}
+
 // ----- TAG EDITOR -----
 function TagEditor({ tags, onChange }) {
   const [adding, setAdding] = useState("");
@@ -617,6 +634,13 @@ function DetailDrawer({ project, onClose, onUpdate, onDelete, onDuplicate }) {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
                 <StatusBadge status={project.status} editable onChange={(v) => patch({ status: v })} />
                 <PriorityDots value={project.priority} editable onChange={(v) => patch({ priority: v })} />
+                <TeamSelect
+                  value={["passenger","driver"].find(t => project.tags?.includes(t)) || ""}
+                  onChange={(team) => {
+                    const base = (project.tags || []).filter(t => t !== "passenger" && t !== "driver");
+                    patch({ tags: team ? [team, ...base] : base });
+                  }}
+                />
               </div>
               <Editable
                 as="h1"
@@ -944,6 +968,6 @@ function AddProjectModal({ initial, onClose, onSave }) {
 }
 
 Object.assign(window, {
-  Icon, STATUS_META, CoverArt, StatusBadge, PriorityDots, Editable, TagEditor,
+  Icon, STATUS_META, CoverArt, StatusBadge, PriorityDots, Editable, TagEditor, TeamSelect,
   ProjectCard, ListRow, DetailDrawer, LinkSection, AddProjectModal, LinkIconFor,
 });
