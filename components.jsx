@@ -275,13 +275,27 @@ function LinkIconFor(kind) {
   return { cls: "proto", icon: <Icon.play /> };
 }
 
+// ----- PLATFORM BADGE -----
+const PLATFORM_META = {
+  passenger: { label: "Passenger", color: "oklch(0.42 0.14 280)", bg: "oklch(0.92 0.08 280 / 0.88)" },
+  driver:    { label: "Driver",    color: "oklch(0.38 0.14 155)", bg: "oklch(0.90 0.08 155 / 0.88)" },
+};
+
 // ----- CARD -----
 function ProjectCard({ project, onOpen, onPin }) {
   const totalLinks = (project.figma?.length || 0) + (project.proto?.length || 0) + (project.docs?.length || 0);
+  const platform = project.tags?.find(t => t === "passenger" || t === "driver");
+  const pm = platform ? PLATFORM_META[platform] : null;
+  const otherTags = project.tags?.filter(t => t !== "passenger" && t !== "driver") || [];
   return (
-    <article className="card" onClick={() => onOpen(project.id)}>
+    <article className="card" data-platform={platform || ""} onClick={() => onOpen(project.id)}>
       <div className="card-cover">
         <CoverArt cover={project.cover} label={project.coverLabel} />
+        {pm && (
+          <span className="card-platform-badge" style={{ background: pm.bg, color: pm.color }}>
+            {pm.label}
+          </span>
+        )}
         <button
           className={`card-pin ${project.pinned ? "pinned" : ""}`}
           onClick={(e) => { e.stopPropagation(); onPin(project.id); }}
@@ -323,9 +337,9 @@ function ProjectCard({ project, onOpen, onPin }) {
           </div>
           <span className="updated">{project.updated}</span>
         </div>
-        {project.tags?.length > 0 && (
+        {otherTags.length > 0 && (
           <div className="tags-row">
-            {project.tags.map(t => <span key={t} className="tag-mini">{t}</span>)}
+            {otherTags.map(t => <span key={t} className="tag-mini">{t}</span>)}
           </div>
         )}
       </div>
@@ -436,6 +450,7 @@ function CoverEditor({ project, onChange }) {
 
   return (
     <div
+      ref={ref}
       className="drawer-cover"
       onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("dropping"); }}
       onDragLeave={(e) => e.currentTarget.classList.remove("dropping")}
@@ -443,7 +458,7 @@ function CoverEditor({ project, onChange }) {
     >
       <CoverArt cover={project.cover} label={project.coverLabel} />
 
-      <div className="cover-overlay" ref={ref}>
+      <div className="cover-overlay">
         {/* Upload */}
         <button className="cover-btn" onClick={() => fileRef.current?.click()}>
           <Icon.upload /> Upload
