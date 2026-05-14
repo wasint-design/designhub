@@ -40,6 +40,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 }/*EDITMODE-END*/;
 
 const ALLOWED_DOMAIN = "@umt.ltd";
+const IS_DEV = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
 function LoginScreen({ onSignIn, error }) {
   return (
@@ -105,6 +106,12 @@ function App() {
 
   // auth
   useEffect(() => {
+    if (IS_DEV) {
+      // Skip auth in local dev (VSCode Live Preview / localhost)
+      setSession({ user: { email: "dev@umt.ltd" } });
+      setAuthLoading(false);
+      return;
+    }
     db.auth.getSession().then(({ data: { session } }) => {
       if (session && !session.user.email.endsWith(ALLOWED_DOMAIN)) {
         db.auth.signOut();
