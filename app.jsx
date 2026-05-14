@@ -153,6 +153,14 @@ function App() {
     document.documentElement.style.setProperty("--display", `"${t.displayFont}", sans-serif`);
   }, [t.theme, t.density, t.accent, t.displayFont]);
 
+  // dynamic tag list from real projects (exclude platform tags)
+  const allTags = useMemo(() => {
+    const EXCLUDE = new Set(["passenger", "driver"]);
+    const seen = new Set();
+    projects.forEach(p => p.tags?.forEach(t => { if (!EXCLUDE.has(t)) seen.add(t); }));
+    return [...seen].sort();
+  }, [projects]);
+
   // counts
   const counts = useMemo(() => {
     const c = { all: projects.length, ongoing: 0, shipped: 0, hold: 0, archived: 0, adhoc: 0, pinned: 0, passenger: 0, driver: 0 };
@@ -358,7 +366,7 @@ function App() {
         <div className="nav-group">
           <div className="nav-label">Tags</div>
           <div className="tag-cloud">
-            {ALL_TAGS.map(tag => (
+            {allTags.map(tag => (
               <button key={tag} className={`tag-pill ${tagFilter === tag ? "active" : ""}`}
                 onClick={() => setTagFilter(tagFilter === tag ? null : tag)}>
                 {tag}
