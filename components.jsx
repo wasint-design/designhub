@@ -28,7 +28,7 @@ const Icon = {
 const PLATFORMS = [
   { key: "passenger", label: "Passenger",       color: "oklch(0.42 0.14 280)", bg: "oklch(0.92 0.08 280 / 0.88)", dot: "oklch(0.55 0.14 280)" },
   { key: "driver",    label: "Driver",           color: "oklch(0.38 0.14 155)", bg: "oklch(0.90 0.08 155 / 0.88)", dot: "oklch(0.55 0.14 155)" },
-  { key: "marketing", label: "Marketing tools",  color: "oklch(0.42 0.14 38)",  bg: "oklch(0.94 0.08 38  / 0.88)", dot: "oklch(0.55 0.14 38)"  },
+  { key: "marketing", label: "Marketing tools",  color: "oklch(0.42 0.14 38)",  bg: "oklch(0.94 0.08 38  / 0.88)", dot: "oklch(0.55 0.14 38)",  hidden: true },
 ];
 const PLATFORM_META = Object.fromEntries(PLATFORMS.map(p => [p.key, p]));
 const PLATFORM_TAGS = new Set(PLATFORMS.map(p => p.key));
@@ -292,7 +292,7 @@ function ProjectCard({ project, onOpen, onPin }) {
   const totalLinks = (project.figma?.length || 0) + (project.proto?.length || 0) + (project.docs?.length || 0);
   const platform = project.tags?.find(t => PLATFORM_META[t]);
   const pm = platform ? PLATFORM_META[platform] : null;
-  const otherTags = project.tags?.filter(t => t !== "passenger" && t !== "driver") || [];
+  const otherTags = project.tags?.filter(t => !PLATFORM_TAGS.has(t)) || [];
   return (
     <article className="card" data-platform={platform || ""} onClick={() => onOpen(project.id)}>
       <div className="card-cover">
@@ -686,9 +686,9 @@ function DetailDrawer({ project, projects, onClose, onUpdate, onDelete, onDuplic
                 <StatusBadge status={project.status} editable onChange={(v) => patch({ status: v })} />
                 <PriorityDots value={project.priority} editable onChange={(v) => patch({ priority: v })} />
                 <TeamSelect
-                  value={["passenger","driver"].find(t => project.tags?.includes(t)) || ""}
+                  value={PLATFORMS.find(p => project.tags?.includes(p.key))?.key || ""}
                   onChange={(team) => {
-                    const base = (project.tags || []).filter(t => t !== "passenger" && t !== "driver");
+                    const base = (project.tags || []).filter(t => !PLATFORM_TAGS.has(t));
                     patch({ tags: team ? [team, ...base] : base });
                   }}
                 />

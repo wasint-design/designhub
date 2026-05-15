@@ -148,24 +148,27 @@ function App() {
     document.documentElement.style.setProperty("--display", `"${t.displayFont}", sans-serif`);
   }, [t.theme, t.density, t.accent, t.displayFont]);
 
+  // platforms that are hidden from the main library (show only under their own filter)
+  const HIDDEN_PLATFORMS = new Set(PLATFORMS.filter(p => p.hidden).map(p => p.key));
+
   // dynamic tag list from real projects (exclude platform tags)
   const allTags = useMemo(() => {
-    const EXCLUDE = new Set(["passenger", "driver", "marketing"]);
     const seen = new Set();
-    projects.forEach(p => p.tags?.forEach(t => { if (!EXCLUDE.has(t)) seen.add(t); }));
+    projects.forEach(p => p.tags?.forEach(t => { if (!PLATFORM_TAGS.has(t)) seen.add(t); }));
     return [...seen].sort();
   }, [projects]);
 
   // counts
   const counts = useMemo(() => {
-    const c = { all: projects.length, ongoing: 0, shipped: 0, hold: 0, archived: 0, adhoc: 0, pinned: 0 };
+    const c = { all: 0, ongoing: 0, shipped: 0, hold: 0, archived: 0, adhoc: 0, pinned: 0 };
     projects.forEach(p => {
+      PLATFORMS.forEach(pl => { if (p.tags?.includes(pl.key)) c[pl.key] = (c[pl.key] || 0) + 1; });
+      // hidden-platform projects don't count toward general stats
+      if (p.tags?.some(t => HIDDEN_PLATFORMS.has(t))) return;
+      c.all++;
       c[p.status] = (c[p.status] || 0) + 1;
       if (p.tags?.includes("adhoc")) c.adhoc++;
       if (p.pinned) c.pinned++;
-      PLATFORMS.forEach(pl => {
-        if (p.tags?.includes(pl.key)) c[pl.key] = (c[pl.key] || 0) + 1;
-      });
     });
     return c;
   }, [projects]);
@@ -173,6 +176,10 @@ function App() {
   // filtered
   const filtered = useMemo(() => {
     let list = projects.slice();
+    // hide hidden-platform projects unless explicitly viewing that platform
+    if (!HIDDEN_PLATFORMS.has(platformFilter)) {
+      list = list.filter(p => !p.tags?.some(t => HIDDEN_PLATFORMS.has(t)));
+    }
     if (filter === "pinned") list = list.filter(p => p.pinned);
     else if (filter === "adhoc") list = list.filter(p => p.tags?.includes("adhoc"));
     else if (filter !== "all") list = list.filter(p => p.status === filter);
