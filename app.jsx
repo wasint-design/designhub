@@ -1,5 +1,5 @@
-/* global React, ReactDOM, SEED_PROJECTS, ALL_TAGS, SUPABASE_URL, SUPABASE_ANON_KEY,
-   Icon, ProjectCard, ListRow, DetailDrawer, AddProjectModal, TeamSelect,
+/* global React, ReactDOM, ALL_TAGS, SUPABASE_URL, SUPABASE_ANON_KEY,
+   PLATFORMS, Icon, ProjectCard, ListRow, DetailDrawer, TeamSelect,
    useTweaks, TweaksPanel, TweakSection, TweakColor, TweakRadio, TweakToggle, TweakSelect
 */
 const { useState, useEffect, useMemo, useRef } = React;
@@ -15,11 +15,6 @@ async function dbLoad() {
 async function dbUpsert(project) {
   const { error } = await db.from("projects").upsert({ id: project.id, data: project });
   if (error) { console.error("upsert:", error); return error; }
-}
-async function dbInsert(project) {
-  // use upsert so duplicate-id retries don't fail
-  const { error } = await db.from("projects").upsert({ id: project.id, data: project });
-  if (error) { console.error("insert:", error); return error; }
 }
 async function dbInsertMany(projects) {
   const rows = projects.map(p => ({ id: p.id, data: p }));
@@ -163,14 +158,14 @@ function App() {
 
   // counts
   const counts = useMemo(() => {
-    const c = { all: projects.length, ongoing: 0, shipped: 0, hold: 0, archived: 0, adhoc: 0, pinned: 0, passenger: 0, driver: 0, marketing: 0 };
+    const c = { all: projects.length, ongoing: 0, shipped: 0, hold: 0, archived: 0, adhoc: 0, pinned: 0 };
     projects.forEach(p => {
       c[p.status] = (c[p.status] || 0) + 1;
       if (p.tags?.includes("adhoc")) c.adhoc++;
       if (p.pinned) c.pinned++;
-      if (p.tags?.includes("passenger")) c.passenger++;
-      if (p.tags?.includes("driver")) c.driver++;
-      if (p.tags?.includes("marketing")) c.marketing++;
+      PLATFORMS.forEach(pl => {
+        if (p.tags?.includes(pl.key)) c[pl.key] = (c[pl.key] || 0) + 1;
+      });
     });
     return c;
   }, [projects]);
@@ -245,7 +240,7 @@ function App() {
     };
     setProjects(prev => [copy, ...prev]);
     setOpenId(copy.id);
-    dbInsert(copy);
+    dbUpsert(copy);
   };
   const isEmptyProject = (p) =>
     !p.title.trim() &&
@@ -261,51 +256,45 @@ function App() {
     setOpenId(null);
   };
 
+  const makeProject = (overrides = {}) => ({
+    id: "p-" + Math.random().toString(36).slice(2, 9),
+    title: "",
+    desc: "",
+    status: "ongoing",
+    priority: 0,
+    tags: [],
+    cover: { kind: "stripes", c1: "oklch(0.78 0.10 252)", c2: "oklch(0.92 0.04 252)", angle: "55deg" },
+    coverLabel: "",
+    figma: [], proto: [], docs: [],
+    stakeholders: [],
+    updated: "Just now",
+    started: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    notes: "",
+    history: [{ date: "Today", text: "Project created" }],
+    pinned: false,
+    ...overrides,
+  });
   const createProject = (team) => {
-    const autoTeam = team || platformFilter; // use passed team or current sidebar filter
-    const p = {
-      id: "p-" + Math.random().toString(36).slice(2, 9),
-      title: "",
-      desc: "",
-      status: "ongoing",
-      priority: 0,
-      tags: autoTeam ? [autoTeam] : [],
-      cover: { kind: "stripes", c1: "oklch(0.78 0.10 252)", c2: "oklch(0.92 0.04 252)", angle: "55deg" },
-      coverLabel: "",
-      figma: [], proto: [], docs: [],
-      stakeholders: [],
-      updated: "Just now",
-      started: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      notes: "",
-      history: [{ date: "Today", text: "Project created" }],
-      pinned: false,
-    };
+    const autoTeam = team || platformFilter;
+    const p = makeProject({ tags: autoTeam ? [autoTeam] : [] });
     setProjects(prev => [p, ...prev]);
     setOpenId(p.id);
-    dbInsert(p);
+    dbUpsert(p);
   };
   const quickCapture = () => {
     if (!inboxText.trim()) return;
-    const p = {
+    const p = makeProject({
       id: "p-quick-" + Math.random().toString(36).slice(2, 7),
       title: inboxText.trim(),
-      desc: "",
-      status: "ongoing",
-      priority: 0,
       tags: ["adhoc"],
       cover: { kind: "stripes", c1: "oklch(0.85 0.04 60)", c2: "oklch(0.93 0.02 60)", angle: "0deg" },
       coverLabel: "ADHOC",
-      figma: [], proto: [], docs: [],
-      stakeholders: [],
-      updated: "Just now",
-      started: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      notes: "", history: [{ date: "Today", text: "Captured via inbox" }],
-      pinned: false,
-    };
+      history: [{ date: "Today", text: "Captured via inbox" }],
+    });
     setProjects(prev => [p, ...prev]);
     setOpenId(p.id);
     setInboxText("");
-    dbInsert(p);
+    dbUpsert(p);
   };
 
   // keyboard shortcuts
@@ -352,9 +341,13 @@ function App() {
 
         <div className="nav-group">
           <div className="nav-label">Platform</div>
-          <NavItem dotColor="oklch(0.55 0.14 280)" label="Passenger"       count={counts.passenger || 0} active={platformFilter === "passenger"} onClick={() => { setPlatformFilter(platformFilter === "passenger" ? null : "passenger"); setTagFilter(null); }} />
-          <NavItem dotColor="oklch(0.55 0.14 155)" label="Driver"          count={counts.driver    || 0} active={platformFilter === "driver"}    onClick={() => { setPlatformFilter(platformFilter === "driver"    ? null : "driver");    setTagFilter(null); }} />
-          <NavItem dotColor="oklch(0.55 0.14 38)"  label="Marketing tools" count={counts.marketing  || 0} active={platformFilter === "marketing"} onClick={() => { setPlatformFilter(platformFilter === "marketing"  ? null : "marketing");  setTagFilter(null); }} />
+          {PLATFORMS.map(pl => (
+            <NavItem key={pl.key} dotColor={pl.dot} label={pl.label}
+              count={counts[pl.key] || 0}
+              active={platformFilter === pl.key}
+              onClick={() => { setPlatformFilter(platformFilter === pl.key ? null : pl.key); setTagFilter(null); }}
+            />
+          ))}
         </div>
 
         <div className="nav-group">

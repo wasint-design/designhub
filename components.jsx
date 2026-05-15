@@ -25,6 +25,14 @@ const Icon = {
   pencil: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 2l3 3-8 8H3v-3l8-8z" /></svg>,
 };
 
+const PLATFORMS = [
+  { key: "passenger", label: "Passenger",       color: "oklch(0.42 0.14 280)", bg: "oklch(0.92 0.08 280 / 0.88)", dot: "oklch(0.55 0.14 280)" },
+  { key: "driver",    label: "Driver",           color: "oklch(0.38 0.14 155)", bg: "oklch(0.90 0.08 155 / 0.88)", dot: "oklch(0.55 0.14 155)" },
+  { key: "marketing", label: "Marketing tools",  color: "oklch(0.42 0.14 38)",  bg: "oklch(0.94 0.08 38  / 0.88)", dot: "oklch(0.55 0.14 38)"  },
+];
+const PLATFORM_META = Object.fromEntries(PLATFORMS.map(p => [p.key, p]));
+const PLATFORM_TAGS = new Set(PLATFORMS.map(p => p.key));
+
 // ----- STATUS META -----
 const STATUS_META = {
   ongoing: { label: "Ongoing", color: "var(--s-ongoing)", soft: "var(--s-ongoing-soft)" },
@@ -232,16 +240,12 @@ function TeamSelect({ value, onChange }) {
       style={{ color: PLATFORM_META[value]?.color }}
     >
       <option value="">No platform</option>
-      <option value="passenger">Passenger</option>
-      <option value="driver">Driver</option>
-      <option value="marketing">Marketing tools</option>
+      {PLATFORMS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
     </select>
   );
 }
 
 // ----- TAG EDITOR -----
-const PLATFORM_TAGS = new Set(["passenger", "driver", "marketing"]);
-
 function TagEditor({ tags, onChange }) {
   const [adding, setAdding] = useState("");
   const [hint, setHint] = useState(false);
@@ -282,13 +286,6 @@ function LinkIconFor(kind) {
   if (kind === "web") return { cls: "web", icon: <Icon.web /> };
   return { cls: "proto", icon: <Icon.play /> };
 }
-
-// ----- PLATFORM BADGE -----
-const PLATFORM_META = {
-  passenger: { label: "Passenger",       color: "oklch(0.42 0.14 280)", bg: "oklch(0.92 0.08 280 / 0.88)" },
-  driver:    { label: "Driver",          color: "oklch(0.38 0.14 155)", bg: "oklch(0.90 0.08 155 / 0.88)" },
-  marketing: { label: "Marketing tools", color: "oklch(0.42 0.14 38)",  bg: "oklch(0.94 0.08 38  / 0.88)" },
-};
 
 // ----- CARD -----
 function ProjectCard({ project, onOpen, onPin }) {
@@ -832,7 +829,7 @@ function DetailDrawer({ project, projects, onClose, onUpdate, onDelete, onDuplic
 // ----- LINK SECTION -----
 function LinkSection({ title, kind, placeholder, links, onAdd, onRemove, onUpdate, showKindToggle }) {
   const [adding, setAdding] = useState(false);
-  const [editIdx, setEditIdx] = useState(null);
+  const [editState, setEditState] = useState(null); // null | { idx, name, url, kind }
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [linkKind, setLinkKind] = useState(kind === "proto" ? "web" : kind);
@@ -848,52 +845,49 @@ function LinkSection({ title, kind, placeholder, links, onAdd, onRemove, onUpdat
 
   const startEdit = (e, i) => {
     e.preventDefault(); e.stopPropagation();
-    setEditIdx(i);
-    setName(links[i].name || "");
-    setUrl(links[i].url || "");
-    setLinkKind(links[i].kind || (kind === "proto" ? "web" : kind));
+    setEditState({ idx: i, name: links[i].name || "", url: links[i].url || "", kind: links[i].kind || (kind === "proto" ? "web" : kind) });
     setAdding(false);
   };
 
   const submitEdit = () => {
-    if (!url.trim()) return;
-    const cleanUrl = url.trim().replace(/^https?:\/\//, "");
-    const link = { name: name.trim() || titleFromUrl(cleanUrl), url: cleanUrl };
-    if (kind === "proto") link.kind = linkKind;
-    onUpdate(editIdx, link);
-    setEditIdx(null); setName(""); setUrl("");
+    if (!editState.url.trim()) return;
+    const cleanUrl = editState.url.trim().replace(/^https?:\/\//, "");
+    const link = { name: editState.name.trim() || titleFromUrl(cleanUrl), url: cleanUrl };
+    if (kind === "proto") link.kind = editState.kind;
+    onUpdate(editState.idx, link);
+    setEditState(null);
   };
 
   return (
     <>
       <div className="section-h">{title} <span style={{ color: "var(--ink-3)", marginLeft: 4 }}>({links.length})</span></div>
       <div className="link-list">
-        {links.map((l, i) => editIdx === i ? (
+        {links.map((l, i) => editState?.idx === i ? (
           <div key={i} className="add-link-form" onClick={(e) => e.stopPropagation()}>
             <input
               autoFocus
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              value={editState.url}
+              onChange={(e) => setEditState(s => ({ ...s, url: e.target.value }))}
               placeholder={placeholder}
-              onKeyDown={(e) => { if (e.key === "Enter") submitEdit(); if (e.key === "Escape") setEditIdx(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter") submitEdit(); if (e.key === "Escape") setEditState(null); }}
             />
             <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={editState.name}
+              onChange={(e) => setEditState(s => ({ ...s, name: e.target.value }))}
               placeholder="Label (optional)"
-              onKeyDown={(e) => { if (e.key === "Enter") submitEdit(); if (e.key === "Escape") setEditIdx(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter") submitEdit(); if (e.key === "Escape") setEditState(null); }}
             />
             {showKindToggle && (
               <div style={{ display: "flex", gap: 6 }}>
                 {["web", "figma"].map(k => (
-                  <button key={k} onClick={() => setLinkKind(k)} style={{ flex: 1, padding: "6px 10px", borderRadius: 6, fontSize: 11, fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: "0.08em", border: "1px solid var(--line)", background: linkKind === k ? "var(--ink)" : "var(--paper)", color: linkKind === k ? "var(--bg)" : "var(--ink-2)" }}>
+                  <button key={k} onClick={() => setEditState(s => ({ ...s, kind: k }))} style={{ flex: 1, padding: "6px 10px", borderRadius: 6, fontSize: 11, fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: "0.08em", border: "1px solid var(--line)", background: editState.kind === k ? "var(--ink)" : "var(--paper)", color: editState.kind === k ? "var(--bg)" : "var(--ink-2)" }}>
                     {k === "web" ? "Webapp" : "Figma"}
                   </button>
                 ))}
               </div>
             )}
             <div className="row">
-              <button className="cancel" onClick={() => setEditIdx(null)}>Cancel</button>
+              <button className="cancel" onClick={() => setEditState(null)}>Cancel</button>
               <button className="save" onClick={submitEdit}>Save</button>
             </div>
           </div>
@@ -986,109 +980,7 @@ function titleFromUrl(u) {
   return "Link";
 }
 
-// ----- ADD PROJECT MODAL -----
-function AddProjectModal({ initial, onClose, onSave }) {
-  const [title, setTitle] = useState(initial?.title || "");
-  const [desc, setDesc] = useState("");
-  const [status, setStatus] = useState("ongoing");
-  const [priority, setPriority] = useState(2);
-  const [tags, setTags] = useState("");
-  const [figmaUrl, setFigmaUrl] = useState("");
-  const [protoUrl, setProtoUrl] = useState("");
-  const [docUrl, setDocUrl] = useState("");
-
-  const save = () => {
-    if (!title.trim()) return;
-    const id = "p-" + title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 30) + "-" + Math.random().toString(36).slice(2, 5);
-    const palettes = [
-      { kind: "stripes", c1: "oklch(0.78 0.10 38)", c2: "oklch(0.92 0.04 38)", angle: "55deg" },
-      { kind: "blob", c1: "oklch(0.85 0.08 155)", c2: "oklch(0.88 0.04 80)", c3: "oklch(0.96 0.01 155)" },
-      { kind: "grid", c2: "oklch(0.75 0.08 230 / 0.4)", c3: "oklch(0.96 0.02 230)" },
-      { kind: "type", c1: "oklch(0.45 0.14 280)", c3: "oklch(0.94 0.04 280)", text: title.trim()[0]?.toUpperCase() + (title.trim()[1] || "").toLowerCase() },
-    ];
-    onSave({
-      id,
-      title: title.trim(),
-      desc: desc.trim(),
-      status,
-      priority: Number(priority),
-      tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-      cover: palettes[Math.floor(Math.random() * palettes.length)],
-      coverLabel: title.toUpperCase().slice(0, 14),
-      figma: figmaUrl ? [{ name: title + " — Figma", url: figmaUrl.replace(/^https?:\/\//, "") }] : [],
-      proto: protoUrl ? [{ name: "Prototype", url: protoUrl.replace(/^https?:\/\//, ""), kind: "web" }] : [],
-      docs: docUrl ? [{ name: "Doc", url: docUrl.replace(/^https?:\/\//, "") }] : [],
-      stakeholders: ["Self"],
-      updated: "Just now",
-      started: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      notes: "",
-      history: [{ date: "Today", text: "Project created" }],
-      pinned: false,
-    });
-  };
-
-  return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <div className="modal-title">New project</div>
-          <button className="icon-btn" onClick={onClose}><Icon.close /></button>
-        </div>
-        <div className="modal-body">
-          <div className="field">
-            <label className="field-label">Title</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Settings redesign" autoFocus />
-          </div>
-          <div className="field">
-            <label className="field-label">Description</label>
-            <textarea value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="One-line summary of what this is" />
-          </div>
-          <div className="field-row">
-            <div className="field">
-              <label className="field-label">Status</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)}>
-                <option value="ongoing">Ongoing</option>
-                <option value="shipped">Shipped</option>
-                <option value="hold">On hold</option>
-                <option value="archived">Archived</option>
-              </select>
-            </div>
-            <div className="field">
-              <label className="field-label">Priority</label>
-              <select value={priority} onChange={(e) => setPriority(e.target.value)}>
-                <option value={1}>Low</option>
-                <option value={2}>Medium</option>
-                <option value={3}>High</option>
-              </select>
-            </div>
-          </div>
-          <div className="field">
-            <label className="field-label">Tags <span style={{ textTransform: "none", color: "var(--ink-3)" }}>(comma separated)</span></label>
-            <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="mobile, growth, core" />
-          </div>
-          <div className="field">
-            <label className="field-label">Figma file URL</label>
-            <input value={figmaUrl} onChange={(e) => setFigmaUrl(e.target.value)} placeholder="figma.com/file/..." />
-          </div>
-          <div className="field">
-            <label className="field-label">Prototype URL</label>
-            <input value={protoUrl} onChange={(e) => setProtoUrl(e.target.value)} placeholder="proto.acme.com/..." />
-          </div>
-          <div className="field">
-            <label className="field-label">Doc URL <span style={{ textTransform: "none", color: "var(--ink-3)" }}>(PRD, research, etc.)</span></label>
-            <input value={docUrl} onChange={(e) => setDocUrl(e.target.value)} placeholder="docs.google.com/document/..." />
-          </div>
-        </div>
-        <div className="modal-foot">
-          <button className="ghost-btn" onClick={onClose}>Cancel</button>
-          <button className="primary-btn" onClick={save}>Create project</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 Object.assign(window, {
-  Icon, STATUS_META, CoverArt, StatusBadge, PriorityDots, Editable, TagEditor, TeamSelect,
-  ProjectCard, ListRow, DetailDrawer, LinkSection, AddProjectModal, LinkIconFor,
+  PLATFORMS, Icon, STATUS_META, CoverArt, StatusBadge, PriorityDots, Editable, TagEditor, TeamSelect,
+  ProjectCard, ListRow, DetailDrawer, LinkSection, LinkIconFor,
 });
