@@ -16,11 +16,6 @@ async function dbUpsert(project) {
   const { error } = await db.from("projects").upsert({ id: project.id, data: project });
   if (error) { console.error("upsert:", error); return error; }
 }
-async function dbInsertMany(projects) {
-  const rows = projects.map(p => ({ id: p.id, data: p }));
-  const { error } = await db.from("projects").upsert(rows);
-  if (error) { console.error("insertMany:", error); return error; }
-}
 async function dbDelete(id) {
   const { error } = await db.from("projects").delete().eq("id", id);
   if (error) { console.error("delete:", error); return error; }
@@ -88,7 +83,7 @@ function App() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
-  const [platformFilter, setPlatformFilter] = useState(null); // null | "passenger" | "driver"
+  const [platformFilter, setPlatformFilter] = useState(null); // null | platform key
   const [tagFilter, setTagFilter] = useState(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState("grid");
@@ -253,7 +248,9 @@ function App() {
     !p.title.trim() &&
     !p.desc.trim() &&
     !p.figma?.length && !p.proto?.length && !p.docs?.length &&
-    !p.notes?.trim();
+    !p.notes?.trim() &&
+    p.status === "ongoing" &&  // unchanged from default
+    p.priority === 0;          // unchanged from default
 
   const handleClose = () => {
     if (openProject && isEmptyProject(openProject)) {
