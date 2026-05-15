@@ -229,17 +229,18 @@ function TeamSelect({ value, onChange }) {
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onClick={(e) => e.stopPropagation()}
-      style={{ color: value === "driver" ? "oklch(0.42 0.14 155)" : value === "passenger" ? "oklch(0.42 0.14 280)" : undefined }}
+      style={{ color: PLATFORM_META[value]?.color }}
     >
       <option value="">No platform</option>
       <option value="passenger">Passenger</option>
       <option value="driver">Driver</option>
+      <option value="marketing">Marketing tools</option>
     </select>
   );
 }
 
 // ----- TAG EDITOR -----
-const PLATFORM_TAGS = new Set(["passenger", "driver"]);
+const PLATFORM_TAGS = new Set(["passenger", "driver", "marketing"]);
 
 function TagEditor({ tags, onChange }) {
   const [adding, setAdding] = useState("");
@@ -284,14 +285,15 @@ function LinkIconFor(kind) {
 
 // ----- PLATFORM BADGE -----
 const PLATFORM_META = {
-  passenger: { label: "Passenger", color: "oklch(0.42 0.14 280)", bg: "oklch(0.92 0.08 280 / 0.88)" },
-  driver:    { label: "Driver",    color: "oklch(0.38 0.14 155)", bg: "oklch(0.90 0.08 155 / 0.88)" },
+  passenger: { label: "Passenger",       color: "oklch(0.42 0.14 280)", bg: "oklch(0.92 0.08 280 / 0.88)" },
+  driver:    { label: "Driver",          color: "oklch(0.38 0.14 155)", bg: "oklch(0.90 0.08 155 / 0.88)" },
+  marketing: { label: "Marketing tools", color: "oklch(0.42 0.14 38)",  bg: "oklch(0.94 0.08 38  / 0.88)" },
 };
 
 // ----- CARD -----
 function ProjectCard({ project, onOpen, onPin }) {
   const totalLinks = (project.figma?.length || 0) + (project.proto?.length || 0) + (project.docs?.length || 0);
-  const platform = project.tags?.find(t => t === "passenger" || t === "driver");
+  const platform = project.tags?.find(t => PLATFORM_META[t]);
   const pm = platform ? PLATFORM_META[platform] : null;
   const otherTags = project.tags?.filter(t => t !== "passenger" && t !== "driver") || [];
   return (

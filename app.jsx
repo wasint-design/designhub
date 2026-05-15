@@ -155,7 +155,7 @@ function App() {
 
   // dynamic tag list from real projects (exclude platform tags)
   const allTags = useMemo(() => {
-    const EXCLUDE = new Set(["passenger", "driver"]);
+    const EXCLUDE = new Set(["passenger", "driver", "marketing"]);
     const seen = new Set();
     projects.forEach(p => p.tags?.forEach(t => { if (!EXCLUDE.has(t)) seen.add(t); }));
     return [...seen].sort();
@@ -163,13 +163,14 @@ function App() {
 
   // counts
   const counts = useMemo(() => {
-    const c = { all: projects.length, ongoing: 0, shipped: 0, hold: 0, archived: 0, adhoc: 0, pinned: 0, passenger: 0, driver: 0 };
+    const c = { all: projects.length, ongoing: 0, shipped: 0, hold: 0, archived: 0, adhoc: 0, pinned: 0, passenger: 0, driver: 0, marketing: 0 };
     projects.forEach(p => {
       c[p.status] = (c[p.status] || 0) + 1;
       if (p.tags?.includes("adhoc")) c.adhoc++;
       if (p.pinned) c.pinned++;
       if (p.tags?.includes("passenger")) c.passenger++;
       if (p.tags?.includes("driver")) c.driver++;
+      if (p.tags?.includes("marketing")) c.marketing++;
     });
     return c;
   }, [projects]);
@@ -351,8 +352,9 @@ function App() {
 
         <div className="nav-group">
           <div className="nav-label">Platform</div>
-          <NavItem dotColor="oklch(0.55 0.14 280)" label="Passenger" count={counts.passenger || 0} active={platformFilter === "passenger"} onClick={() => { setPlatformFilter(platformFilter === "passenger" ? null : "passenger"); setTagFilter(null); }} />
-          <NavItem dotColor="oklch(0.55 0.14 155)" label="Driver"    count={counts.driver    || 0} active={platformFilter === "driver"}    onClick={() => { setPlatformFilter(platformFilter === "driver"    ? null : "driver");    setTagFilter(null); }} />
+          <NavItem dotColor="oklch(0.55 0.14 280)" label="Passenger"       count={counts.passenger || 0} active={platformFilter === "passenger"} onClick={() => { setPlatformFilter(platformFilter === "passenger" ? null : "passenger"); setTagFilter(null); }} />
+          <NavItem dotColor="oklch(0.55 0.14 155)" label="Driver"          count={counts.driver    || 0} active={platformFilter === "driver"}    onClick={() => { setPlatformFilter(platformFilter === "driver"    ? null : "driver");    setTagFilter(null); }} />
+          <NavItem dotColor="oklch(0.55 0.14 38)"  label="Marketing tools" count={counts.marketing  || 0} active={platformFilter === "marketing"} onClick={() => { setPlatformFilter(platformFilter === "marketing"  ? null : "marketing");  setTagFilter(null); }} />
         </div>
 
         <div className="nav-group">
