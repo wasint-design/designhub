@@ -239,16 +239,20 @@ function TeamSelect({ value, onChange }) {
 }
 
 // ----- TAG EDITOR -----
+const PLATFORM_TAGS = new Set(["passenger", "driver"]);
+
 function TagEditor({ tags, onChange }) {
   const [adding, setAdding] = useState("");
+  const [hint, setHint] = useState(false);
   const add = () => {
     const v = adding.trim().toLowerCase().replace(/^#/, "");
+    if (PLATFORM_TAGS.has(v)) { setHint(true); setAdding(""); setTimeout(() => setHint(false), 2500); return; }
     if (v && !tags.includes(v)) onChange([...tags, v]);
     setAdding("");
   };
   return (
     <div className="tag-editor">
-      {tags.map(t => (
+      {tags.filter(t => !PLATFORM_TAGS.has(t)).map(t => (
         <span key={t} className="tag-chip">
           #{t}
           <button onClick={() => onChange(tags.filter(x => x !== t))} title="Remove tag">×</button>
@@ -256,14 +260,16 @@ function TagEditor({ tags, onChange }) {
       ))}
       <input
         value={adding}
-        onChange={(e) => setAdding(e.target.value)}
+        onChange={(e) => { setAdding(e.target.value); setHint(false); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); }
-          if (e.key === "Backspace" && !adding && tags.length) onChange(tags.slice(0, -1));
+          if (e.key === "Backspace" && !adding && tags.filter(t => !PLATFORM_TAGS.has(t)).length)
+            onChange(tags.filter(t => !PLATFORM_TAGS.has(t)).slice(0, -1).concat(tags.filter(t => PLATFORM_TAGS.has(t))));
         }}
         onBlur={add}
         placeholder="+ add tag"
       />
+      {hint && <span style={{ fontSize: 11, color: "var(--ink-3)", alignSelf: "center" }}>Use Platform dropdown ↑</span>}
     </div>
   );
 }
