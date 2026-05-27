@@ -646,6 +646,7 @@ function DetailDrawer({ project, projects, onClose, onUpdate, onDelete, onDuplic
   const open = !!project;
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [copied, setCopied] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -701,6 +702,13 @@ function DetailDrawer({ project, projects, onClose, onUpdate, onDelete, onDuplic
                   title={project.pinned ? "Unpin" : "Pin"}
                 >
                   {project.pinned ? <Icon.pin /> : <Icon.pinOutline />}
+                </button>
+                <button
+                  className={`icon-btn${copied ? " active" : ""}`}
+                  onClick={() => copyProjectLink(project.id).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}
+                  title="Copy link"
+                >
+                  {copied ? <Icon.check /> : <Icon.copyLink />}
                 </button>
                 <button className="icon-btn" onClick={() => setMenuOpen(!menuOpen)} title="More">
                   <span style={{ fontSize: 18, lineHeight: 1, letterSpacing: 1 }}>···</span>
