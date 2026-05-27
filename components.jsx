@@ -399,7 +399,7 @@ function ListRow({ project, onOpen, onPin }) {
       <span className="updated" style={{ marginLeft: 0 }}>{project.updated}</span>
       <button
         className={`card-copy-link${copied ? " copied" : ""}`}
-        style={{ position: "static", opacity: copied ? 1 : undefined }}
+        style={{ position: "static" }}
         onClick={(e) => { e.stopPropagation(); copyProjectLink(project.id).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }}
         title="Copy link"
       >
