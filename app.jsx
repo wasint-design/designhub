@@ -201,7 +201,8 @@ function App() {
         p.tags?.some(tg => tg.includes(q))
       );
     }
-    if (sort === "priority") list.sort((a, b) => b.priority - a.priority);
+    if (sort === "updated") list.sort((a, b) => (a.updated > b.updated ? -1 : 1));
+    else if (sort === "priority") list.sort((a, b) => b.priority - a.priority);
     else if (sort === "alpha") list.sort((a, b) => a.title.localeCompare(b.title));
     else if (sort === "started") list.sort((a, b) => (a.started > b.started ? -1 : 1));
     return list;
@@ -235,8 +236,9 @@ function App() {
     });
   };
   const updateProject = (next) => {
-    setProjects(prev => prev.map(p => p.id === next.id ? next : p));
-    dbUpsert(next);
+    const stamped = { ...next, updated: new Date().toISOString() };
+    setProjects(prev => prev.map(p => p.id === stamped.id ? stamped : p));
+    dbUpsert(stamped);
   };
   const deleteProject = (id) => {
     setProjects(prev => prev.filter(p => p.id !== id));
@@ -249,7 +251,7 @@ function App() {
       id: project.id + "-copy-" + Math.random().toString(36).slice(2, 5),
       title: project.title + " (copy)",
       pinned: false,
-      updated: "Just now",
+      updated: new Date().toISOString(),
       started: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
       history: [{ date: "Today", text: "Duplicated from " + project.title }, ...(project.history || [])],
     };
@@ -284,7 +286,7 @@ function App() {
     coverLabel: "",
     figma: [], proto: [], docs: [],
     stakeholders: [],
-    updated: "Just now",
+    updated: new Date().toISOString(),
     started: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
     notes: "",
     history: [{ date: "Today", text: "Project created" }],

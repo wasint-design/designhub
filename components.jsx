@@ -27,6 +27,24 @@ const Icon = {
   check: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l3.5 3.5L13 4.5" /></svg>,
 };
 
+// ----- TIME -----
+function timeAgo(iso) {
+  if (!iso || !iso.includes("T")) return iso || "—"; // backward compat for legacy "Just now" strings
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  const wks = Math.floor(days / 7);
+  if (wks < 5) return `${wks}w ago`;
+  const mos = Math.floor(days / 30);
+  if (mos < 12) return `${mos}mo ago`;
+  return `${Math.floor(mos / 12)}y ago`;
+}
+
 const PLATFORMS = [
   { key: "passenger", label: "Passenger",       color: "oklch(0.42 0.14 280)", bg: "oklch(0.92 0.08 280 / 0.88)", dot: "oklch(0.55 0.14 280)" },
   { key: "driver",    label: "Driver",           color: "oklch(0.38 0.14 155)", bg: "oklch(0.90 0.08 155 / 0.88)", dot: "oklch(0.55 0.14 155)" },
@@ -356,7 +374,7 @@ function ProjectCard({ project, onOpen, onPin }) {
               <span className="tag-mini" style={{ opacity: 0.5 }}>no links</span>
             )}
           </div>
-          <span className="updated">{project.updated}</span>
+          <span className="updated">{timeAgo(project.updated)}</span>
         </div>
         {otherTags.length > 0 && (
           <div className="tags-row">
@@ -396,7 +414,7 @@ function ListRow({ project, onOpen, onPin }) {
         {project.proto?.length > 0 && <span className="link-chip"><Icon.play />{project.proto.length}</span>}
         {project.docs?.length > 0 && <span className="link-chip"><Icon.doc />{project.docs.length}</span>}
       </div>
-      <span className="updated" style={{ marginLeft: 0 }}>{project.updated}</span>
+      <span className="updated" style={{ marginLeft: 0 }}>{timeAgo(project.updated)}</span>
       <button
         className={`card-copy-link${copied ? " copied" : ""}`}
         style={{ position: "static" }}
