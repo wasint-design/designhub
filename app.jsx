@@ -130,10 +130,23 @@ function App() {
   useEffect(() => {
     if (!session) return;
     dbLoad().then(rows => {
-      if (rows !== null) setProjects(rows);
+      if (rows !== null) {
+        setProjects(rows);
+        // auto-open project from deep link
+        const param = new URLSearchParams(window.location.search).get("project");
+        if (param && rows.some(r => r.id === param)) setOpenId(param);
+      }
       setLoading(false);
     });
   }, [session]);
+
+  // sync openId to URL so links are shareable
+  useEffect(() => {
+    const url = openId
+      ? `${window.location.pathname}?project=${openId}`
+      : window.location.pathname;
+    history.replaceState(null, "", url);
+  }, [openId]);
 
   // apply theme + tweaks
   useEffect(() => {

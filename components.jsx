@@ -23,6 +23,8 @@ const Icon = {
   link: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M9 4.5h2.5a3 3 0 0 1 0 6H9M7 11.5H4.5a3 3 0 0 1 0-6H7M5.5 8h5" /></svg>,
   color: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><circle cx="5" cy="6" r="1.5" /><circle cx="11" cy="6" r="1.5" /><circle cx="8" cy="11" r="1.5" /><circle cx="8" cy="3" r="1.5" /></svg>,
   pencil: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 2l3 3-8 8H3v-3l8-8z" /></svg>,
+  copyLink: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 4.5H4.5a2.5 2.5 0 0 0 0 5h2M9.5 4.5h2a2.5 2.5 0 0 1 0 5h-2M5 7h6" /></svg>,
+  check: () => <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l3.5 3.5L13 4.5" /></svg>,
 };
 
 const PLATFORMS = [
@@ -288,7 +290,13 @@ function LinkIconFor(kind) {
 }
 
 // ----- CARD -----
+function copyProjectLink(id) {
+  const url = `${window.location.origin}${window.location.pathname}?project=${id}`;
+  return navigator.clipboard.writeText(url);
+}
+
 function ProjectCard({ project, onOpen, onPin }) {
+  const [copied, setCopied] = useState(false);
   const totalLinks = (project.figma?.length || 0) + (project.proto?.length || 0) + (project.docs?.length || 0);
   const platform = project.tags?.find(t => PLATFORM_META[t]);
   const pm = platform ? PLATFORM_META[platform] : null;
@@ -302,6 +310,13 @@ function ProjectCard({ project, onOpen, onPin }) {
             {pm.label}
           </span>
         )}
+        <button
+          className={`card-copy-link${copied ? " copied" : ""}`}
+          onClick={(e) => { e.stopPropagation(); copyProjectLink(project.id).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }}
+          title="Copy link"
+        >
+          {copied ? <Icon.check /> : <Icon.copyLink />}
+        </button>
         <button
           className={`card-pin ${project.pinned ? "pinned" : ""}`}
           onClick={(e) => { e.stopPropagation(); onPin(project.id); }}
@@ -355,6 +370,7 @@ function ProjectCard({ project, onOpen, onPin }) {
 
 // ----- LIST ROW -----
 function ListRow({ project, onOpen, onPin }) {
+  const [copied, setCopied] = useState(false);
   return (
     <div className="list-row" onClick={() => onOpen(project.id)}>
       <button
@@ -381,6 +397,14 @@ function ListRow({ project, onOpen, onPin }) {
         {project.docs?.length > 0 && <span className="link-chip"><Icon.doc />{project.docs.length}</span>}
       </div>
       <span className="updated" style={{ marginLeft: 0 }}>{project.updated}</span>
+      <button
+        className={`card-copy-link${copied ? " copied" : ""}`}
+        style={{ position: "static", opacity: copied ? 1 : undefined }}
+        onClick={(e) => { e.stopPropagation(); copyProjectLink(project.id).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }}
+        title="Copy link"
+      >
+        {copied ? <Icon.check /> : <Icon.copyLink />}
+      </button>
       <Icon.chevron />
     </div>
   );
